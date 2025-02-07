@@ -1,6 +1,6 @@
 import TelegramBot from "node-telegram-bot-api";
 
-import { envConfig } from "./config/env";
+import { envConfig } from "./config";
 import { logger } from "./logger";
 import { PerClient } from "./services/per";
 

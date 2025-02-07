@@ -3,11 +3,18 @@ import {
     Client,
     Opportunity,
     OpportunityDelete,
+    OpportunitySvm,
+    OpportunitySvmLimo,
+    OpportunitySvmSwap,
     SvmChainUpdate,
 } from "@pythnetwork/express-relay-js";
 import TelegramBot from "node-telegram-bot-api";
 
 import { logger } from "../logger";
+import {
+    generateLimoOpportunityMessage,
+    generateSwapOpportunityMessage,
+} from "../opportunities";
 
 export class PerClient {
     private client: Client;
@@ -53,10 +60,35 @@ export class PerClient {
         );
     };
 
+    // todo: add a cache for mint -> token info? displaying (subset of) mint is not super useful
     private async opportunityHandler(opportunity: Opportunity) {
-        await this.onNotificationCallback(
-            `💡 New opportunity received:\nID: ${opportunity.opportunityId}\nChain: ${opportunity.chainId}`
-        );
+        // prop only in OpportunitySvm
+        if (!("program" in opportunity)) {
+            logger.info(
+                `Ignoring non-SVM opportunity ${opportunity.opportunityId} on ${opportunity.chainId}`
+            );
+            return;
+        }
+
+        const svmOpportunity = opportunity as OpportunitySvm;
+        const program = svmOpportunity.program;
+
+        if (program === "limo") {
+            const msg = generateLimoOpportunityMessage(
+                svmOpportunity as OpportunitySvmLimo
+            );
+
+            await this.onNotificationCallback(msg);
+        } else if (program === "swap") {
+            const msg = generateSwapOpportunityMessage(
+                svmOpportunity as OpportunitySvmSwap
+            );
+
+            await this.onNotificationCallback(msg);
+        } else {
+            logger.warn(`Unknown program: ${program}`);
+            return;
+        }
 
         if (!this.latestChainUpdate[this.chainId]) {
             logger.warn(
