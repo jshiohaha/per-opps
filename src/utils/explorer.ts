@@ -1,10 +1,6 @@
-import { Keypair, PublicKey } from "@solana/web3.js";
-import bs58 from "bs58";
+import { PublicKey } from "@solana/web3.js";
 
-import { EXPLORER_URL_PROVIDER, ExplorerProvider } from "./config";
-
-export const toKeypair = (encoded: string): Keypair =>
-    Keypair.fromSecretKey(Uint8Array.from(bs58.decode(encoded)));
+import { EXPLORER_URL_PROVIDER, ExplorerProvider } from "../config";
 
 export const generateAddressLink = (
     pk: PublicKey,

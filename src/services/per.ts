@@ -10,6 +10,7 @@ import {
 } from "@pythnetwork/express-relay-js";
 import TelegramBot from "node-telegram-bot-api";
 
+import { TokenCache } from "../cache";
 import { logger } from "../logger";
 import {
     generateLimoOpportunityMessage,
@@ -19,18 +20,23 @@ import {
 export class PerClient {
     private client: Client;
     private latestChainUpdate: Record<string, SvmChainUpdate> = {};
+    private telegramBot: TelegramBot;
+    private telegramChatId: string;
+    private chainId: string;
+    private tokenCache: TokenCache;
 
-    constructor(
-        private endpointExpressRelay: string,
-        private chainId: string,
-        private telegramBot: TelegramBot,
-        private telegramChatId: string,
-        private apiKey?: string
-    ) {
+    constructor(args: {
+        endpointExpressRelay: string;
+        chainId: string;
+        telegramBot: TelegramBot;
+        telegramChatId: string;
+        tokenCache: TokenCache;
+        apiKey?: string;
+    }) {
         this.client = new Client(
             {
-                baseUrl: this.endpointExpressRelay,
-                apiKey: this.apiKey,
+                baseUrl: args.endpointExpressRelay,
+                apiKey: args.apiKey,
             },
             undefined,
             this.opportunityHandler.bind(this),
@@ -39,6 +45,10 @@ export class PerClient {
             this.removeOpportunitiesHandler.bind(this),
             this.websocketCloseHandler.bind(this)
         );
+        this.tokenCache = args.tokenCache;
+        this.telegramBot = args.telegramBot;
+        this.telegramChatId = args.telegramChatId;
+        this.chainId = args.chainId;
     }
 
     private async onNotificationCallback(message: string) {
@@ -52,10 +62,9 @@ export class PerClient {
         }
     }
 
-    private async websocketCloseHandler() {
-        logger.info("⚠️ WebSocket closed. Exiting...");
-        process.exit(1);
-    }
+    private websocketCloseHandler = async () => {
+        await this.onNotificationCallback("❌ WebSocket connection closed");
+    };
 
     private bidStatusHandler = async (bidStatus: BidStatusUpdate) => {
         await this.onNotificationCallback(
@@ -63,7 +72,6 @@ export class PerClient {
         );
     };
 
-    // todo: add a cache for mint -> token info? displaying (subset of) mint is not super useful
     private async opportunityHandler(opportunity: Opportunity) {
         // prop only in OpportunitySvm
         if (!("program" in opportunity)) {
@@ -76,20 +84,26 @@ export class PerClient {
         const svmOpportunity = opportunity as OpportunitySvm;
         const program = svmOpportunity.program;
 
-        if (program === "limo") {
-            const msg = generateLimoOpportunityMessage(
-                svmOpportunity as OpportunitySvmLimo
-            );
+        try {
+            let msg: string;
+            if (program === "limo") {
+                msg = await generateLimoOpportunityMessage(
+                    svmOpportunity as OpportunitySvmLimo,
+                    this.tokenCache
+                );
+            } else if (program === "swap") {
+                msg = await generateSwapOpportunityMessage(
+                    svmOpportunity as OpportunitySvmSwap,
+                    this.tokenCache
+                );
+            } else {
+                logger.warn(`Unknown program: ${program}`);
+                return;
+            }
 
             await this.onNotificationCallback(msg);
-        } else if (program === "swap") {
-            const msg = generateSwapOpportunityMessage(
-                svmOpportunity as OpportunitySvmSwap
-            );
-
-            await this.onNotificationCallback(msg);
-        } else {
-            logger.warn(`Unknown program: ${program}`);
+        } catch (error) {
+            logger.error("Error handling opportunity:", error);
             return;
         }
 
@@ -134,10 +148,7 @@ export class PerClient {
     }
 
     public async stop() {
-        if (this.client.websocket) {
-            this.client.websocket.close();
-        }
-
-        await this.onNotificationCallback("🛑 Bot stopped");
+        this.client.websocket?.close();
+        logger.info("🛑 Bot stopped");
     }
 }

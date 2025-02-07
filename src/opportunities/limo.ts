@@ -1,12 +1,21 @@
 import { OpportunitySvmLimo } from "@pythnetwork/express-relay-js";
 import { DateTime } from "luxon";
 
+import { TokenCache } from "../cache";
 import { generateAddressLink, shortAddress } from "../utils";
+import { formatTokenAmount } from "../utils/token";
 
-export const generateLimoOpportunityMessage = (
-    opp: OpportunitySvmLimo
-): string => {
+export const generateLimoOpportunityMessage = async (
+    opp: OpportunitySvmLimo,
+    tokenCache: TokenCache
+): Promise<string> => {
     const order = opp.order.state;
+
+    const [inputToken, outputToken] = await Promise.all([
+        tokenCache.get(order.inputMint),
+        tokenCache.get(order.outputMint),
+    ]);
+
     const msg = [
         `⏰ ${DateTime.now().toLocaleString(DateTime.DATETIME_SHORT)}`,
         `🎯 *New LIMO Opportunity* 🎯`,
@@ -21,14 +30,39 @@ export const generateLimoOpportunityMessage = (
         `┗ Type: ${order.orderType === 0 ? "Limit" : "Market"}`,
         "",
         "💱 *Swap*",
-        `┣ From: [${shortAddress(order.inputMint)}](${generateAddressLink(
+        `┣ From: ${
+            inputToken?.metadata.name ?? shortAddress(order.inputMint)
+        } [${shortAddress(order.inputMint)}](${generateAddressLink(
             order.inputMint
         )})`,
-        `┣ To: [${shortAddress(order.outputMint)}](${generateAddressLink(
+        `┣ To: ${
+            outputToken?.metadata.name ?? shortAddress(order.outputMint)
+        } [${shortAddress(order.outputMint)}](${generateAddressLink(
             order.outputMint
         )})`,
-        `┣ Remaining: ${order.remainingInputAmount.toString()} → Expecting ${order.expectedOutputAmount.toString()}`,
-        `┗ Filled: ${order.filledOutputAmount.toString()} (${order.numberOfFills.toString()} fills)`,
+        `┣ Remaining: ${
+            inputToken
+                ? formatTokenAmount(
+                      order.remainingInputAmount,
+                      inputToken.mint.decimals
+                  )
+                : order.remainingInputAmount.toString()
+        } → Expecting ${
+            outputToken
+                ? formatTokenAmount(
+                      order.expectedOutputAmount,
+                      outputToken.mint.decimals
+                  )
+                : order.expectedOutputAmount.toString()
+        }`,
+        `┗ Filled: ${
+            outputToken
+                ? formatTokenAmount(
+                      order.filledOutputAmount,
+                      outputToken.mint.decimals
+                  )
+                : order.filledOutputAmount.toString()
+        } (${order.numberOfFills.toString()} fills)`,
         "",
         `⏱️ Last updated: ${DateTime.fromSeconds(
             order.lastUpdatedTimestamp.toNumber()

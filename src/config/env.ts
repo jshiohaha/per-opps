@@ -7,6 +7,8 @@ interface EnvConfig {
     TELEGRAM_CHAT_ID: string;
     EXPRESS_RELAY_ENDPOINT: string;
     CHAIN_ID: string;
+    SOLANA_RPC_ENDPOINT: string;
+    REDIS_URL?: string;
     PER_API_KEY?: string;
 }
 
@@ -16,12 +18,15 @@ const getEnvConfig = (): EnvConfig => {
         TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID,
         EXPRESS_RELAY_ENDPOINT: process.env.EXPRESS_RELAY_ENDPOINT,
         CHAIN_ID: process.env.CHAIN_ID,
+        SOLANA_RPC_ENDPOINT: process.env.SOLANA_RPC_ENDPOINT,
         PER_API_KEY: process.env.PER_API_KEY?.trim(),
+        REDIS_URL: process.env.REDIS_URL,
     };
 
+    const optional = ["PER_API_KEY", "REDIS_URL"];
+
     const missingVars = Object.entries(config)
-        // PER_API_KEY is optional
-        .filter(([key, value]) => key !== "PER_API_KEY" && !value)
+        .filter(([key, value]) => !optional.includes(key) && !value)
         .map(([key]) => key);
 
     if (missingVars.length > 0) {
