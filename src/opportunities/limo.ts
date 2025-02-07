@@ -14,21 +14,21 @@ export const generateLimoOpportunityMessage = (
         `⛓️ Chain: ${opp.chainId}`,
         "",
         "📋 *Order Details*",
-        `• Address: [${shortAddress(opp.order.address)}](${generateAddressLink(
+        `┣ Address: [${shortAddress(opp.order.address)}](${generateAddressLink(
             opp.order.address
         )})`,
-        `• Status: ${mapOrderStatus(order.status)}`,
-        `• Type: ${order.orderType === 0 ? "Limit" : "Market"}`,
+        `┣ Status: ${mapOrderStatus(order.status)}`,
+        `┗ Type: ${order.orderType === 0 ? "Limit" : "Market"}`,
         "",
         "💱 *Swap*",
-        `• From: [${shortAddress(order.inputMint)}](${generateAddressLink(
+        `┣ From: [${shortAddress(order.inputMint)}](${generateAddressLink(
             order.inputMint
         )})`,
-        `• To: [${shortAddress(order.outputMint)}](${generateAddressLink(
+        `┣ To: [${shortAddress(order.outputMint)}](${generateAddressLink(
             order.outputMint
         )})`,
-        `• Remaining: ${order.remainingInputAmount.toString()} → Expecting ${order.expectedOutputAmount.toString()}`,
-        `• Filled: ${order.filledOutputAmount.toString()} (${order.numberOfFills.toString()} fills)`,
+        `┣ Remaining: ${order.remainingInputAmount.toString()} → Expecting ${order.expectedOutputAmount.toString()}`,
+        `┗ Filled: ${order.filledOutputAmount.toString()} (${order.numberOfFills.toString()} fills)`,
         "",
         `⏱️ Last updated: ${DateTime.fromSeconds(
             order.lastUpdatedTimestamp.toNumber()

@@ -43,7 +43,10 @@ export class PerClient {
 
     private async onNotificationCallback(message: string) {
         try {
-            await this.telegramBot.sendMessage(this.telegramChatId, message);
+            await this.telegramBot.sendMessage(this.telegramChatId, message, {
+                parse_mode: "MarkdownV2",
+                disable_web_page_preview: true,
+            });
         } catch (error) {
             logger.error("Failed to send Telegram message:", error);
         }
