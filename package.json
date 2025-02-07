@@ -1,0 +1,35 @@
+{
+    "name": "per-tg-bot",
+    "version": "1.0.0",
+    "description": "Telegram bot that monitors PER opportunities",
+    "main": "index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "dev": "ts-node src/index.ts",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "shio 🚀",
+    "license": "ISC",
+    "packageManager": "pnpm@9.15.3+sha512.1f79bc245a66eb0b07c5d4d83131240774642caaa86ef7d0434ab47c0d16f66b04e21e0c086eb61e62c77efc4d7f7ec071afad3796af64892fae66509173893a",
+    "dependencies": {
+        "@coral-xyz/anchor": "^0.30.1",
+        "@pythnetwork/express-relay-js": "^0.21.0",
+        "@solana/web3.js": "^1.98.0",
+        "@types/pino": "^7.0.5",
+        "bs58": "^6.0.0",
+        "dotenv": "^16.4.7",
+        "node-telegram-bot-api": "^0.66.0",
+        "pino": "^9.6.0",
+        "pino-pretty": "^13.0.0",
+        "ws": "^8.18.0"
+    },
+    "devDependencies": {
+        "@types/node": "^22.13.1",
+        "@types/node-telegram-bot-api": "^0.64.7",
+        "@types/ws": "^8.5.14",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.7.3"
+    }
+}

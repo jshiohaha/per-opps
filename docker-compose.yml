@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: per-tg-bot
+        restart: unless-stopped
+        env_file:
+            - .env
+        volumes:
+            - ./logs:/app/logs
+        networks:
+            - per-network
+
+networks:
+    per-network:
+        driver: bridge
