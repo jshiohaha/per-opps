@@ -54,10 +54,9 @@ export class TokenCache implements ITokenCache {
 
             return asset;
         } catch (error) {
-            logger.error(
-                `Error fetching token info for ${mintAddress}:`,
-                error
-            );
+            logger.error(`Error fetching token info for ${mintAddress}:`, {
+                error,
+            });
             return null;
         }
     }

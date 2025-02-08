@@ -16,6 +16,7 @@ import {
     generateLimoOpportunityMessage,
     generateSwapOpportunityMessage,
 } from "../opportunities";
+import { escapeMarkdownV2 } from "../utils/tg";
 
 export class PerClient {
     private client: Client;
@@ -53,12 +54,18 @@ export class PerClient {
 
     private async onNotificationCallback(message: string) {
         try {
-            await this.telegramBot.sendMessage(this.telegramChatId, message, {
-                parse_mode: "MarkdownV2",
-                disable_web_page_preview: true,
-            });
+            await this.telegramBot.sendMessage(
+                this.telegramChatId,
+                escapeMarkdownV2(message),
+                {
+                    parse_mode: "MarkdownV2",
+                    disable_web_page_preview: true,
+                }
+            );
         } catch (error) {
-            logger.error("Failed to send Telegram message:", error);
+            logger.error("Failed to send Telegram message:", {
+                error,
+            });
         }
     }
 
@@ -103,7 +110,7 @@ export class PerClient {
 
             await this.onNotificationCallback(msg);
         } catch (error) {
-            logger.error("Error handling opportunity:", error);
+            logger.error("Error handling opportunity:", { error });
             return;
         }
 
@@ -138,7 +145,6 @@ export class PerClient {
                 `Subscribed to chain ${this.chainId}. Waiting for opportunities...`
             );
         } catch (error) {
-            logger.error(error);
             await this.onNotificationCallback(
                 `❌ Error starting bot: ${error}`
             );

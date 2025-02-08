@@ -67,6 +67,8 @@ const main = async () => {
 };
 
 main().catch((error) => {
-    logger.error("Fatal error:", error);
+    logger.error("Fatal application error", {
+        error,
+    });
     process.exit(1);
 });

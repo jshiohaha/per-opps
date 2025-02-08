@@ -12,9 +12,11 @@ export class RedisCache<S extends string, T> implements ICache<S, T> {
         this.client.on("error", (err) =>
             logger.error("Redis Client Error", err)
         );
-        this.client
-            .connect()
-            .catch((err) => logger.error("Redis Connection Error", err));
+        this.client.connect().catch((error) =>
+            logger.error("Redis Connection Error", {
+                error,
+            })
+        );
     }
 
     async get(key: S): Promise<T | null> {
@@ -22,7 +24,7 @@ export class RedisCache<S extends string, T> implements ICache<S, T> {
             const value = await this.client.get(key);
             return value ? (JSON.parse(value) as T) : null;
         } catch (error) {
-            logger.error(`Redis get error for key ${key}:`, error);
+            logger.error(`Redis get error for key ${key}:`, { error });
             return null;
         }
     }
@@ -31,7 +33,7 @@ export class RedisCache<S extends string, T> implements ICache<S, T> {
         try {
             await this.client.set(key, JSON.stringify(value));
         } catch (error) {
-            logger.error(`Redis set error for key ${key}:`, error);
+            logger.error(`Redis set error for key ${key}:`, { error });
         }
     }
 
@@ -39,7 +41,7 @@ export class RedisCache<S extends string, T> implements ICache<S, T> {
         try {
             await this.client.flushdb();
         } catch (error) {
-            logger.error("Redis clear error:", error);
+            logger.error("Redis clear error:", { error });
         }
     }
 
