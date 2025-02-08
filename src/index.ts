@@ -70,5 +70,6 @@ main().catch((error) => {
     logger.error("Fatal application error", {
         error,
     });
-    process.exit(1);
+
+    // process.exit(1);
 });
