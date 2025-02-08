@@ -7,6 +7,7 @@ import { fromWeb3JsPublicKey } from "@metaplex-foundation/umi-web3js-adapters";
 import { PublicKey } from "@solana/web3.js";
 
 import { logger } from "../logger";
+import { shortAddress } from "../utils";
 import { ICache } from "./impl";
 
 export interface ITokenCache {
@@ -40,16 +41,20 @@ export class TokenCache implements ITokenCache {
         const mintAddress = mint.toBase58();
 
         try {
-            const cachedInfo = this.cache.get(mintAddress);
+            const cachedInfo = await this.cache.get(mintAddress);
             if (cachedInfo) {
+                logger.info(`Cache hit for ${cachedInfo.metadata.name}`);
                 return cachedInfo;
             }
 
-            logger.debug(`Fetching token info for ${mintAddress}`);
             const asset = await fetchDigitalAsset(
                 this.umi,
                 fromWeb3JsPublicKey(mint)
             );
+            logger.info(
+                `Cache miss for ${asset.metadata.name} (${shortAddress(mint)})`
+            );
+
             this.cache.set(mintAddress, asset);
 
             return asset;

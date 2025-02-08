@@ -124,7 +124,7 @@ export class PerClient {
 
     private async svmChainUpdateHandler(update: SvmChainUpdate) {
         const message = `🔗 Chain update received:\nChain: ${update.chainId}\nSlot: ${update.blockhash}`;
-        logger.debug("[svmChainUpdate]", message);
+        logger.info("[svmChainUpdate]", message);
         this.latestChainUpdate[update.chainId] = update;
     }
 

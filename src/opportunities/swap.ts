@@ -39,6 +39,7 @@ export const generateSwapOpportunityMessage = async (
         const searcherTokenInfo = await tokenCache.get(
             opp.tokens.searcherToken
         );
+
         msg.push(
             "🔍 *Searcher Specified*",
             `┗ *Token*: ${
@@ -58,6 +59,7 @@ export const generateSwapOpportunityMessage = async (
         );
     } else if (opp.tokens.type === "user_specified") {
         const userTokenInfo = await tokenCache.get(opp.tokens.userToken);
+
         msg.push(
             "💁🏻‍♂️ *User Specified*",
             `┣ *Token*: ${
