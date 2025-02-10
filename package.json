@@ -24,6 +24,7 @@
         "@solana/spl-token": "^0.4.12",
         "@solana/web3.js": "^1.98.0",
         "@types/pino": "^7.0.5",
+        "bottleneck": "^2.19.5",
         "bs58": "^6.0.0",
         "dotenv": "^16.4.7",
         "ioredis": "^5.5.0",

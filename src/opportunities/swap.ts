@@ -2,8 +2,9 @@ import { OpportunitySvmSwap } from "@pythnetwork/express-relay-js";
 import { DateTime } from "luxon";
 
 import { TokenCache } from "../cache";
+import { logger } from "../logger";
 import { generateAddressLink, shortAddress } from "../utils";
-import { formatTokenAmount } from "../utils/token";
+import { formatTokenAmount, serializeDigitalAsset } from "../utils/token";
 
 export const generateSwapOpportunityMessage = async (
     opp: OpportunitySvmSwap,
@@ -40,6 +41,10 @@ export const generateSwapOpportunityMessage = async (
             opp.tokens.searcherToken
         );
 
+        logger.info(
+            `searcher token info = ${serializeDigitalAsset(searcherTokenInfo)}`
+        );
+
         msg.push(
             "🔍 *Searcher Specified*",
             `┗ *Token*: ${
@@ -59,13 +64,15 @@ export const generateSwapOpportunityMessage = async (
         );
     } else if (opp.tokens.type === "user_specified") {
         const userTokenInfo = await tokenCache.get(opp.tokens.userToken);
+        logger.info(
+            `user token info = ${serializeDigitalAsset(userTokenInfo)}`
+        );
 
+        const tokenName =
+            userTokenInfo?.metadata.name ?? shortAddress(opp.tokens.userToken);
         msg.push(
             "💁🏻‍♂️ *User Specified*",
-            `┣ *Token*: ${
-                userTokenInfo?.metadata.name ??
-                shortAddress(opp.tokens.userToken)
-            } [${shortAddress(opp.tokens.userToken)}](${generateAddressLink(
+            `┣ *Token*: [${tokenName}](${generateAddressLink(
                 opp.tokens.userToken
             )})`,
             `┗ ${

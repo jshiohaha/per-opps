@@ -18,11 +18,12 @@ import { PerClient } from "./services/per";
 
 const connection = new Connection(envConfig.SOLANA_RPC_ENDPOINT);
 const umi = createUmi(connection);
+logger.debug(`umi = ${umi.rpc.getCluster()}`);
 umi.use(mplTokenMetadata());
 
 // use custom keypair if needed
-const keypair = generateSigner(umi);
-umi.use(signerIdentity(createSignerFromKeypair(umi, keypair)));
+const signer = generateSigner(umi);
+umi.use(signerIdentity(createSignerFromKeypair(umi, signer)));
 
 if (envConfig.REDIS_URL) {
     logger.info(`Using Redis cache at ${envConfig.REDIS_URL}`);

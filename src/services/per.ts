@@ -6,8 +6,8 @@ import {
     OpportunitySvm,
     OpportunitySvmLimo,
     OpportunitySvmSwap,
-    SvmChainUpdate,
 } from "@pythnetwork/express-relay-js";
+import Bottleneck from "bottleneck";
 import TelegramBot from "node-telegram-bot-api";
 
 import { TokenCache } from "../cache";
@@ -20,11 +20,11 @@ import { escapeMarkdownV2 } from "../utils/tg";
 
 export class PerClient {
     private client: Client;
-    private latestChainUpdate: Record<string, SvmChainUpdate> = {};
     private telegramBot: TelegramBot;
     private telegramChatId: string;
     private chainId: string;
     private tokenCache: TokenCache;
+    private limiter: Bottleneck;
 
     constructor(args: {
         endpointExpressRelay: string;
@@ -33,6 +33,8 @@ export class PerClient {
         telegramChatId: string;
         tokenCache: TokenCache;
         apiKey?: string;
+        maxMessagesPerWindow?: number;
+        windowSeconds?: number;
     }) {
         this.client = new Client(
             {
@@ -42,7 +44,7 @@ export class PerClient {
             undefined,
             this.opportunityHandler.bind(this),
             this.bidStatusHandler.bind(this),
-            this.svmChainUpdateHandler.bind(this),
+            undefined,
             this.removeOpportunitiesHandler.bind(this),
             this.websocketCloseHandler.bind(this)
         );
@@ -50,18 +52,81 @@ export class PerClient {
         this.telegramBot = args.telegramBot;
         this.telegramChatId = args.telegramChatId;
         this.chainId = args.chainId;
+
+        // https://rollout.com/integration-guides/telegram-bot-api/api-essentials
+        this.limiter = new Bottleneck({
+            reservoir: args.maxMessagesPerWindow ?? 30,
+            reservoirRefreshAmount: args.maxMessagesPerWindow ?? 30,
+            // ms
+            reservoirRefreshInterval: (args.windowSeconds ?? 60) * 1_000,
+            // process one message at a time
+            maxConcurrent: 1,
+            // minimum time between messages (100ms)
+            minTime: 100,
+            // start dropping messages after queue length reaches N
+            highWater: 100,
+            // drop oldest messages when queue is full
+            strategy: Bottleneck.strategy.LEAK,
+            // do not retry any failed messages
+            retryCount: 0,
+        });
+
+        this.addLimiterEventsListeners();
+    }
+
+    private addLimiterEventsListeners(): void {
+        this.limiter.on("depleted", (empty) => {
+            logger.warn("Rate limit reached, messages will be queued", {
+                empty,
+            });
+        });
+
+        this.limiter.on("dropped", (dropped) => {
+            logger.warn("Message dropped due to queue overflow", { dropped });
+        });
+
+        this.limiter.on("retry", (error) => {
+            logger.warn("Retrying failed message", { error });
+        });
+
+        if (process.env.NODE_ENV === "development") {
+            this.limiter.on("received", () => {
+                logger.debug("Message received by rate limiter");
+            });
+
+            this.limiter.on("queued", () => {
+                logger.debug("Message queued");
+            });
+
+            this.limiter.on("executing", () => {
+                logger.debug("Message being executed");
+            });
+
+            this.limiter.on("done", () => {
+                logger.debug("Message completed");
+            });
+        }
+
+        this.limiter.on("error", (error) => {
+            logger.error("Rate limiter error:", { error });
+        });
     }
 
     private async onNotificationCallback(message: string) {
         try {
-            await this.telegramBot.sendMessage(
-                this.telegramChatId,
-                escapeMarkdownV2(message),
-                {
-                    parse_mode: "MarkdownV2",
-                    disable_web_page_preview: true,
-                }
-            );
+            const counts = this.limiter.counts();
+            logger.debug("Current rate limiter status", { counts });
+
+            await this.limiter.schedule(async () => {
+                await this.telegramBot.sendMessage(
+                    this.telegramChatId,
+                    escapeMarkdownV2(message),
+                    {
+                        parse_mode: "MarkdownV2",
+                        disable_web_page_preview: true,
+                    }
+                );
+            });
         } catch (error) {
             logger.error("Failed to send Telegram message:", {
                 error,
@@ -110,22 +175,12 @@ export class PerClient {
 
             await this.onNotificationCallback(msg);
         } catch (error) {
-            logger.error("Error handling opportunity:", { error });
+            logger.error("Error handling opportunity", {
+                error,
+            });
+
             return;
         }
-
-        if (!this.latestChainUpdate[this.chainId]) {
-            logger.warn(
-                `No recent blockhash for chain ${this.chainId}, skipping bid`
-            );
-            return;
-        }
-    }
-
-    private async svmChainUpdateHandler(update: SvmChainUpdate) {
-        const message = `🔗 Chain update received:\nChain: ${update.chainId}\nSlot: ${update.blockhash}`;
-        logger.info("[svmChainUpdate]", message);
-        this.latestChainUpdate[update.chainId] = update;
     }
 
     private async removeOpportunitiesHandler(
@@ -154,6 +209,11 @@ export class PerClient {
     }
 
     public async stop() {
+        // Drain the queue and stop accepting new jobs
+        await this.limiter.stop({
+            dropWaitingJobs: true, // Drop any queued messages
+        });
+
         this.client.websocket?.close();
         logger.info("🛑 Bot stopped");
     }
