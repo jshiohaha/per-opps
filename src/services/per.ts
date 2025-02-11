@@ -25,6 +25,7 @@ export class PerClient {
     private chainId: string;
     private tokenCache: TokenCache;
     private limiter: Bottleneck;
+    private isReconnecting: boolean = false;
 
     constructor(args: {
         endpointExpressRelay: string;
@@ -41,13 +42,23 @@ export class PerClient {
                 baseUrl: args.endpointExpressRelay,
                 apiKey: args.apiKey,
             },
-            undefined,
+            // https://github.com/pyth-network/per/blob/294b45ce2d69446f69a80ea7b018f19a24a37fe3/sdk/js/src/index.ts#L74-L77
+            {
+                response_timeout: 15_000,
+                ping_interval: 32_000,
+            },
             this.opportunityHandler.bind(this),
             this.bidStatusHandler.bind(this),
             undefined,
             this.removeOpportunitiesHandler.bind(this),
             this.websocketCloseHandler.bind(this)
         );
+
+        this.client.websocket?.on("timeout", () => {
+            logger.warn("WebSocket timeout");
+            this.reconnect();
+        });
+
         this.tokenCache = args.tokenCache;
         this.telegramBot = args.telegramBot;
         this.telegramChatId = args.telegramChatId;
@@ -134,7 +145,35 @@ export class PerClient {
         }
     }
 
+    private async reconnect(): Promise<void> {
+        if (this.isReconnecting) {
+            return;
+        }
+
+        this.isReconnecting = true;
+        logger.info("Attempting to reconnect...");
+
+        try {
+            await this.start();
+            logger.info("Successfully reconnected");
+            await this.onNotificationCallback(
+                "✅ Successfully reconnected to WebSocket"
+            );
+        } catch (error) {
+            logger.error("Failed to reconnect:", { error });
+            await this.onNotificationCallback(
+                "❌ Failed to reconnect to WebSocket"
+            );
+
+            setTimeout(() => {
+                this.isReconnecting = false;
+                this.reconnect();
+            }, 5_000);
+        }
+    }
+
     private websocketCloseHandler = async () => {
+        logger.warn("WebSocket connection closed");
         await this.onNotificationCallback("❌ WebSocket connection closed");
     };
 
@@ -204,14 +243,13 @@ export class PerClient {
                 `❌ Error starting bot: ${error}`
             );
 
-            this.client.websocket?.close();
+            // this.client.websocket?.close();
         }
     }
 
     public async stop() {
-        // Drain the queue and stop accepting new jobs
         await this.limiter.stop({
-            dropWaitingJobs: true, // Drop any queued messages
+            dropWaitingJobs: true,
         });
 
         this.client.websocket?.close();
